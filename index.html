@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Excel BR — Controle de Atualização</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg:#0a0e17; --surface:#111827; --surface2:#1a2333;
+    --border:#1e2d45; --accent:#f59e0b; --accent2:#3b82f6;
+    --danger:#ef4444; --success:#10b981; --warning:#f59e0b;
+    --text:#e2e8f0; --text-muted:#64748b; --text-dim:#94a3b8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;
+    background-image:radial-gradient(ellipse at 20% 0%,rgba(245,158,11,.06) 0%,transparent 50%),
+    radial-gradient(ellipse at 80% 100%,rgba(59,130,246,.06) 0%,transparent 50%);}
+
+  /* BANNER */
+  #setup-banner{background:linear-gradient(135deg,#1a1000,#1a0a00);border-bottom:2px solid var(--accent);
+    padding:13px 32px;display:flex;align-items:center;gap:14px;font-size:13px;}
+  #setup-banner.hidden{display:none;}
+  #setup-banner strong{color:var(--accent);}
+  .btn-setup{margin-left:auto;background:var(--accent);color:#0a0e17;border:none;border-radius:6px;
+    padding:7px 18px;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;
+    letter-spacing:1px;cursor:pointer;white-space:nowrap;}
+
+  header{background:linear-gradient(135deg,#0f1923,#111827);border-bottom:2px solid var(--accent);
+    padding:18px 32px;display:flex;align-items:center;gap:20px;box-shadow:0 4px 32px rgba(245,158,11,.12);}
+  .logo-icon{width:52px;height:52px;background:linear-gradient(135deg,var(--accent),#d97706);
+    border-radius:10px;display:flex;align-items:center;justify-content:center;
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:20px;color:#0a0e17;
+    flex-shrink:0;box-shadow:0 0 20px rgba(245,158,11,.3);}
+  header h1{font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:700;letter-spacing:2px;
+    color:var(--accent);text-transform:uppercase;line-height:1;}
+  header p{font-size:12px;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-top:4px;}
+  .header-right{margin-left:auto;display:flex;align-items:center;gap:16px;}
+  .db-status{display:flex;align-items:center;gap:7px;font-size:12px;letter-spacing:1px;
+    text-transform:uppercase;padding:6px 14px;border-radius:20px;border:1px solid;
+    font-family:'Barlow Condensed',sans-serif;font-weight:600;white-space:nowrap;}
+  .db-status.online{color:var(--success);border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.07);}
+  .db-status.offline{color:var(--danger);border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.07);}
+  .db-status.connecting{color:var(--warning);border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.07);}
+  .live-clock{font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:600;color:var(--accent2);letter-spacing:2px;}
+
+  main{max-width:1200px;margin:0 auto;padding:32px 24px;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:28px 32px;margin-bottom:28px;position:relative;overflow:hidden;}
+  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2),transparent);}
+  .card-title{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;
+    text-transform:uppercase;color:var(--accent);margin-bottom:24px;display:flex;align-items:center;gap:10px;}
+  .card-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent);}
+
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;}
+  .form-group{display:flex;flex-direction:column;gap:7px;}
+  .form-group.half{grid-column:span 2;}
+  label{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);}
+  label span.req{color:var(--accent);margin-left:3px;}
+
+  input,select{background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+    padding:11px 14px;font-family:'Barlow',sans-serif;font-size:14px;color:var(--text);
+    outline:none;transition:border-color .2s,box-shadow .2s;width:100%;}
+  input:focus,select:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(59,130,246,.12);}
+  select option{background:var(--surface2);}
+  .ro{background:rgba(59,130,246,.07);border-color:rgba(59,130,246,.25);color:var(--accent2);
+    font-family:'Barlow Condensed',sans-serif;font-size:15px;letter-spacing:1px;cursor:default;}
+  .s-ok{color:var(--success)!important;}
+  .s-sem{color:var(--warning)!important;}
+  .s-trava{color:var(--danger)!important;}
+
+  .taco-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-top:4px;}
+  .taco-label{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent2);margin-bottom:14px;display:block;}
+  .ana-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px;overflow:hidden;max-height:0;transition:max-height .35s ease,padding .3s;padding-top:0;}
+  .ana-fields.vis{max-height:200px;padding-top:14px;}
+
+  .btn-row{display:flex;gap:12px;margin-top:22px;flex-wrap:wrap;}
+  .btn{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;letter-spacing:1.5px;
+    text-transform:uppercase;padding:11px 26px;border:none;border-radius:8px;cursor:pointer;
+    transition:all .2s;display:flex;align-items:center;gap:8px;}
+  .btn-p{background:linear-gradient(135deg,var(--accent),#d97706);color:#0a0e17;box-shadow:0 4px 18px rgba(245,158,11,.3);}
+  .btn-p:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(245,158,11,.45);}
+  .btn-p:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+  .btn-s{background:transparent;border:1px solid var(--border);color:var(--text-dim);}
+  .btn-s:hover{border-color:var(--accent2);color:var(--accent2);}
+  .btn-xl{background:linear-gradient(135deg,#166534,#15803d);color:#fff;box-shadow:0 4px 18px rgba(21,128,61,.3);}
+  .btn-xl:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(21,128,61,.45);}
+
+  .filter-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;align-items:flex-end;}
+  .filter-row .form-group{min-width:150px;flex:1;margin:0;}
+  .btn-f{background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);border-radius:8px;
+    padding:11px 16px;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;
+    letter-spacing:1px;cursor:pointer;white-space:nowrap;transition:all .2s;}
+  .btn-f:hover{border-color:var(--accent2);color:var(--accent2);}
+
+  .stats-row{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap;}
+  .chip{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 16px;
+    font-size:12px;display:flex;align-items:center;gap:8px;font-family:'Barlow Condensed',sans-serif;}
+  .chip strong{font-size:20px;font-family:'Rajdhani',sans-serif;font-weight:700;}
+  .chip.ok strong{color:var(--success);}
+  .chip.warn strong{color:var(--warning);}
+  .chip.err strong{color:var(--danger);}
+  .chip.tot strong{color:var(--accent2);}
+
+  .tw{overflow-x:auto;border-radius:10px;border:1px solid var(--border);}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead tr{background:var(--surface2);border-bottom:2px solid var(--accent);}
+  th{padding:13px 14px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-weight:700;
+    font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);white-space:nowrap;}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
+  tbody tr:hover{background:rgba(255,255,255,.03);}
+  td{padding:11px 14px;color:var(--text-dim);white-space:nowrap;vertical-align:middle;}
+  td.pref{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:var(--text);letter-spacing:1px;}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;
+    font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+  .badge::before{content:'●';font-size:8px;}
+  .b-ok{background:rgba(16,185,129,.12);color:var(--success);border:1px solid rgba(16,185,129,.25);}
+  .b-sem{background:rgba(245,158,11,.12);color:var(--warning);border:1px solid rgba(245,158,11,.25);}
+  .b-trava{background:rgba(239,68,68,.12);color:var(--danger);border:1px solid rgba(239,68,68,.25);}
+
+  .eb{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;
+    transition:color .2s;padding:4px 8px;border-radius:4px;}
+  .eb:hover{color:var(--accent2);background:rgba(59,130,246,.1);}
+  .db{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;
+    transition:color .2s;padding:4px 8px;border-radius:4px;}
+  .db:hover{color:var(--danger);background:rgba(239,68,68,.1);}
+
+  .empty{text-align:center;padding:48px 24px;color:var(--text-muted);}
+  .empty .icon{font-size:48px;opacity:.3;margin-bottom:12px;}
+  .empty p{font-size:13px;}
+
+  .pg{display:flex;justify-content:center;align-items:center;gap:8px;margin-top:20px;flex-wrap:wrap;}
+  .pgb{background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);border-radius:6px;
+    padding:6px 12px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:14px;transition:all .2s;}
+  .pgb:hover{border-color:var(--accent2);color:var(--accent2);}
+  .pgb.act{border-color:var(--accent);color:var(--accent);background:rgba(245,158,11,.07);}
+  .pgb:disabled{opacity:.3;cursor:not-allowed;}
+
+  .mo{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:100;
+    display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s;}
+  .mo.open{opacity:1;pointer-events:all;}
+  .md{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px;
+    width:100%;max-width:560px;transform:scale(.95);transition:transform .25s;max-height:90vh;overflow-y:auto;}
+  .mo.open .md{transform:scale(1);}
+  .md h2{font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;letter-spacing:2px;
+    text-transform:uppercase;color:var(--accent2);margin-bottom:8px;}
+  .md p{font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6;}
+  .mbtns{display:flex;gap:12px;justify-content:flex-end;margin-top:24px;}
+
+  /* SETUP */
+  .step{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:12px;}
+  .step-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;
+    letter-spacing:1px;color:var(--text);display:flex;align-items:center;margin-bottom:10px;}
+  .sn{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#0a0e17;
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;display:inline-flex;
+    align-items:center;justify-content:center;margin-right:10px;flex-shrink:0;}
+  .step p{font-size:13px;color:var(--text-dim);margin-bottom:6px;line-height:1.6;}
+  .step strong{color:var(--text);}
+  .ic{display:flex;flex-direction:column;gap:12px;margin:12px 0;}
+  .gh-info{background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);border-radius:8px;
+    padding:10px 14px;font-size:12px;color:var(--accent2);letter-spacing:.5px;margin-bottom:4px;}
+  .gh-info span{opacity:.7;}
+
+  .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);
+    border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .toast{position:fixed;bottom:28px;right:28px;color:#fff;padding:14px 22px;border-radius:10px;
+    font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;letter-spacing:1px;
+    box-shadow:0 8px 28px rgba(0,0,0,.4);transform:translateY(80px);opacity:0;
+    transition:all .35s cubic-bezier(.34,1.56,.64,1);z-index:200;display:flex;align-items:center;gap:10px;}
+  .toast.show{transform:translateY(0);opacity:1;}
+  .toast.success{background:var(--success);}
+  .toast.error{background:var(--danger);}
+  .toast.warn{background:#92400e;}
+
+  @media(max-width:700px){
+    header{padding:14px 16px;} header h1{font-size:18px;}
+    main{padding:16px;} .card{padding:18px 16px;}
+    .form-grid{grid-template-columns:1fr;}
+    .form-group.half{grid-column:span 1;}
+    .ana-fields{grid-template-columns:1fr;}
+    .filter-row{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+
+<div id="setup-banner">
+  <span style="font-size:20px">🔑</span>
+  <span><strong>Configuração necessária:</strong> Insira seu Personal Access Token do GitHub para ativar o sistema.</span>
+  <button class="btn-setup" onclick="abrirSetup()">Inserir Token</button>
+</div>
+
+<header>
+  <div class="logo-icon">XBR</div>
+  <div>
+    <h1>Excel BR — Controle de Atualização</h1>
+    <p>Sistema de Abastecimento · Frota de Ônibus &nbsp;|&nbsp; Rápido D'Oeste / Ribe Transporte</p>
+  </div>
+  <div class="header-right">
+    <div id="db-status" class="db-status connecting">Conectando...</div>
+    <div>
+      <div class="live-clock" id="clock">--:--:--</div>
+      <div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);text-align:right;" id="dateDisplay">---</div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- CADASTRO -->
+  <div class="card">
+    <div class="card-title">📋 Cadastro de Atualização</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Prefixo da Frota <span class="req">*</span></label>
+        <input type="text" id="prefixo" placeholder="Ex: 1234" maxlength="10">
+      </div>
+      <div class="form-group">
+        <label>Odômetro do Painel <span class="req">*</span></label>
+        <input type="number" id="od_painel" placeholder="Km do painel" min="0">
+      </div>
+      <div class="form-group">
+        <label>Odômetro do Tacógrafo <span class="req">*</span></label>
+        <input type="number" id="od_taco" placeholder="Km do tacógrafo" min="0">
+      </div>
+      <div class="form-group">
+        <label>Número RAVO <span class="req">*</span></label>
+        <input type="text" id="num_ravo" placeholder="Número RAVO">
+      </div>
+      <div class="form-group half">
+        <label>Tipo de Tacógrafo <span class="req">*</span></label>
+        <div class="taco-box">
+          <span class="taco-label">Selecione o tipo</span>
+          <select id="tipo_taco" onchange="toggleAna()">
+            <option value="">— Selecionar —</option>
+            <option value="digital">🔵 Digital</option>
+            <option value="analogico">🟡 Analógico</option>
+          </select>
+          <div class="ana-fields" id="anaFields">
+            <div class="form-group">
+              <label>Constante K</label>
+              <input type="text" id="const_k" placeholder="Ex: 5000 imp/km">
+            </div>
+            <div class="form-group">
+              <label>Validade da Constante K</label>
+              <input type="date" id="val_k">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Status do Sistema <span class="req">*</span></label>
+        <select id="status" onchange="updateStatusColor()">
+          <option value="">— Selecionar —</option>
+          <option value="ok">✅ Sistema OK</option>
+          <option value="sem_leitura">⚠️ Kit RAVO sem leitura</option>
+          <option value="km_trava">🔴 KM trava na RAVO</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Data e Hora da Atualização</label>
+        <input type="text" id="data_hora" class="ro" readonly>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-p" id="btnSalvar" onclick="addRegistro()"><span>＋</span> Salvar</button>
+      <button class="btn btn-s" onclick="limparForm()">↺ Limpar</button>
+    </div>
+  </div>
+
+  <!-- CONSULTA -->
+  <div class="card">
+    <div class="card-title">🗂 Consulta de Registros</div>
+    <div class="filter-row">
+      <div class="form-group"><label>Prefixo</label>
+        <input type="text" id="fPref" placeholder="Filtrar..." oninput="filtrar()"></div>
+      <div class="form-group"><label>Status</label>
+        <select id="fStatus" onchange="filtrar()">
+          <option value="">Todos</option>
+          <option value="ok">Sistema OK</option>
+          <option value="sem_leitura">Sem Leitura</option>
+          <option value="km_trava">KM Trava</option>
+        </select></div>
+      <div class="form-group"><label>Tipo Tacógrafo</label>
+        <select id="fTipo" onchange="filtrar()">
+          <option value="">Todos</option>
+          <option value="digital">Digital</option>
+          <option value="analogico">Analógico</option>
+        </select></div>
+      <div class="form-group"><label>Data início</label>
+        <input type="date" id="fIni" onchange="filtrar()"></div>
+      <div class="form-group"><label>Data fim</label>
+        <input type="date" id="fFim" onchange="filtrar()"></div>
+      <button class="btn-f" onclick="limparFiltros()">✕ Limpar</button>
+      <button class="btn-f" onclick="carregarDados()">↻ Atualizar</button>
+    </div>
+    <div class="stats-row" id="statsRow"></div>
+    <div id="tableContainer">
+      <div class="empty"><div class="icon">🔑</div>
+        <p>Insira seu token GitHub para visualizar os registros.</p></div>
+    </div>
+    <div class="pg" id="paginacao"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:18px;">
+      <button class="btn btn-xl" onclick="exportarExcel()">📊 Exportar Excel</button>
+    </div>
+  </div>
+
+</main>
+
+<!-- MODAL TOKEN -->
+<div class="mo" id="moSetup">
+  <div class="md" style="max-width:520px;">
+    <h2>🔑 Token GitHub</h2>
+    <p>O repositório e o usuário já estão configurados. Apenas insira seu <strong>Personal Access Token</strong> para ativar o sistema.</p>
+
+    <div class="step">
+      <div class="step-title"><span class="sn">ℹ</span> Repositório configurado</div>
+      <div class="gh-info">
+        <span>Usuário:</span> <strong>vsrocha-rpdo</strong><br>
+        <span>Repositório:</span> <strong>Excel-BR-Controle-de-Atualizado</strong>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-title"><span class="sn">1</span> Gerar o Token (se ainda não tiver)</div>
+      <p>GitHub → <strong>Settings → Developer settings → Personal access tokens → Tokens (classic)</strong></p>
+      <p>Clique em <strong>Generate new token (classic)</strong>, marque a permissão <strong style="color:var(--accent)">repo</strong> e gere. Copie o token — ele aparece apenas uma vez.</p>
+    </div>
+
+    <div class="step">
+      <div class="step-title"><span class="sn">2</span> Cole o token abaixo</div>
+      <div class="ic">
+        <div class="form-group">
+          <label>Personal Access Token</label>
+          <input type="password" id="cfgToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+            style="font-family:'Courier New',monospace;letter-spacing:1px;">
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;">
+          <input type="checkbox" id="showToken" onchange="document.getElementById('cfgToken').type=this.checked?'text':'password'" style="width:auto;padding:0;">
+          Mostrar token
+        </label>
+      </div>
+    </div>
+
+    <div class="mbtns">
+      <button class="btn btn-s" onclick="fecharSetup()">Cancelar</button>
+      <button class="btn btn-p" id="btnConectar" onclick="salvarConfig()">✓ Conectar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIÇÃO -->
+<div class="mo" id="moEdit">
+  <div class="md" style="max-width:560px;">
+    <h2>✏️ Corrigir Registro</h2>
+    <p>Edite os dados e salve as alterações no GitHub.</p>
+    <input type="hidden" id="editIdx">
+    <div class="form-grid" style="margin-bottom:4px;">
+      <div class="form-group"><label>Prefixo <span class="req">*</span></label>
+        <input type="text" id="ePref" maxlength="10"></div>
+      <div class="form-group"><label>Odômetro Painel</label>
+        <input type="number" id="eOdP" min="0"></div>
+      <div class="form-group"><label>Odômetro Tacógrafo</label>
+        <input type="number" id="eOdT" min="0"></div>
+      <div class="form-group"><label>Número RAVO</label>
+        <input type="text" id="eRavo"></div>
+      <div class="form-group"><label>Tipo Tacógrafo</label>
+        <select id="eTipo" onchange="toggleEditAna()">
+          <option value="digital">🔵 Digital</option>
+          <option value="analogico">🟡 Analógico</option>
+        </select></div>
+      <div class="form-group"><label>Status</label>
+        <select id="eStatus">
+          <option value="ok">✅ Sistema OK</option>
+          <option value="sem_leitura">⚠️ Kit RAVO sem leitura</option>
+          <option value="km_trava">🔴 KM trava na RAVO</option>
+        </select></div>
+      <div class="form-group" id="eKGrp"><label>Constante K</label>
+        <input type="text" id="eConstK"></div>
+      <div class="form-group" id="eVGrp"><label>Validade K</label>
+        <input type="date" id="eValK"></div>
+    </div>
+    <div class="mbtns">
+      <button class="btn btn-s" onclick="fecharEdit()">Cancelar</button>
+      <button class="btn btn-p" id="btnSalvarEdit" onclick="salvarEdit()">💾 Salvar Correção</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── REPO FIXO ────────────────────────────────────────────────────────────────
+const GH_USER  = 'vsrocha-rpdo';
+const GH_REPO  = 'Excel-BR-Controle-de-Atualizado';
+const FILE     = 'dados.json';
+let   GH_TOKEN = localStorage.getItem('gh_token') || '';
+
+let ghOnline    = false;
+let todosDados  = [];
+let filtrados   = [];
+let pagina      = 1;
+const POR_PAG   = 20;
+
+// ── CLOCK ────────────────────────────────────────────────────────────────────
+function tick() {
+  const n = new Date();
+  document.getElementById('clock').textContent = n.toLocaleTimeString('pt-BR');
+  document.getElementById('dateDisplay').textContent =
+    n.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  document.getElementById('data_hora').value =
+    n.toLocaleDateString('pt-BR')+' '+n.toLocaleTimeString('pt-BR');
+}
+tick(); setInterval(tick, 1000);
+
+// ── GITHUB API ───────────────────────────────────────────────────────────────
+const API = () =>
+  `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${FILE}`;
+
+async function lerDados() {
+  const r = await fetch(API(), {
+    headers: { Authorization: `token ${GH_TOKEN}`, Accept: 'application/vnd.github.v3+json' }
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  return { dados: JSON.parse(atob(j.content)), sha: j.sha };
+}
+
+async function salvarDados(dados, sha) {
+  const r = await fetch(API(), {
+    method: 'PUT',
+    headers: {
+      Authorization: `token ${GH_TOKEN}`,
+      Accept: 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      message: `Atualização Excel BR — ${new Date().toLocaleString('pt-BR')}`,
+      content: btoa(unescape(encodeURIComponent(JSON.stringify(dados, null, 2)))),
+      sha
+    })
+  });
+  if (!r.ok) { const e = await r.json(); throw new Error(e.message || 'Erro ao salvar'); }
+}
+
+async function testarConexao() {
+  setStatus('connecting');
+  if (!GH_TOKEN) { setStatus('offline'); return false; }
+  try {
+    await lerDados();
+    ghOnline = true; setStatus('online');
+    document.getElementById('setup-banner').classList.add('hidden');
+    return true;
+  } catch(e) {
+    ghOnline = false; setStatus('offline');
+    document.getElementById('setup-banner').classList.remove('hidden');
+    return false;
+  }
+}
+
+function setStatus(s) {
+  const el = document.getElementById('db-status');
+  el.className = 'db-status ' + s;
+  el.textContent = s==='online' ? '● GitHub Online'
+    : s==='offline' ? '● Sem Conexão' : '● Conectando...';
+}
+
+// ── SETUP ────────────────────────────────────────────────────────────────────
+function abrirSetup() {
+  document.getElementById('cfgToken').value = GH_TOKEN;
+  document.getElementById('moSetup').classList.add('open');
+}
+function fecharSetup() { document.getElementById('moSetup').classList.remove('open'); }
+
+async function salvarConfig() {
+  const t = document.getElementById('cfgToken').value.trim();
+  if (!t) { toast('⚠ Insira o token!', 'error'); return; }
+  GH_TOKEN = t;
+  localStorage.setItem('gh_token', t);
+  const btn = document.getElementById('btnConectar');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Testando...';
+  fecharSetup();
+  const ok = await testarConexao();
+  btn.disabled = false; btn.innerHTML = '✓ Conectar';
+  if (ok) { toast('✅ Conectado ao GitHub!', 'success'); carregarDados(); }
+  else toast('❌ Token inválido ou sem permissão no repositório.', 'error');
+}
+
+// ── FORM ─────────────────────────────────────────────────────────────────────
+function toggleAna() {
+  const t = document.getElementById('tipo_taco').value;
+  document.getElementById('anaFields').classList.toggle('vis', t==='analogico');
+  if (t!=='analogico') {
+    document.getElementById('const_k').value = '';
+    document.getElementById('val_k').value = '';
+  }
+}
+function updateStatusColor() {
+  const s = document.getElementById('status');
+  s.className = s.value==='ok' ? 's-ok' : s.value==='sem_leitura' ? 's-sem'
+    : s.value==='km_trava' ? 's-trava' : '';
+}
+
+async function addRegistro() {
+  if (!ghOnline) { toast('⚠ GitHub não conectado! Configure o token.', 'error'); return; }
+  const prefixo   = document.getElementById('prefixo').value.trim();
+  const od_painel = document.getElementById('od_painel').value.trim();
+  const od_taco   = document.getElementById('od_taco').value.trim();
+  const num_ravo  = document.getElementById('num_ravo').value.trim();
+  const tipo      = document.getElementById('tipo_taco').value;
+  const status    = document.getElementById('status').value;
+  const data_hora = document.getElementById('data_hora').value;
+  if (!prefixo||!od_painel||!od_taco||!num_ravo||!tipo||!status) {
+    toast('⚠ Preencha todos os campos obrigatórios!', 'error'); return;
+  }
+  const constante_k = tipo==='analogico' ? (document.getElementById('const_k').value.trim()||null) : null;
+  const validade_k  = tipo==='analogico' ? (document.getElementById('val_k').value||null) : null;
+  const reg = { id: Date.now(), prefixo, od_painel: Number(od_painel), od_taco: Number(od_taco),
+    num_ravo, tipo, constante_k, validade_k, status, data_hora };
+  const btn = document.getElementById('btnSalvar');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Salvando...';
+  try {
+    const { dados, sha } = await lerDados();
+    dados.unshift(reg);
+    await salvarDados(dados, sha);
+    todosDados = dados; filtrar(); limparForm();
+    toast('✅ Registro salvo no GitHub!', 'success');
+  } catch(e) { toast('❌ Erro ao salvar: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = '<span>＋</span> Salvar'; }
+}
+
+function limparForm() {
+  ['prefixo','od_painel','od_taco','num_ravo','const_k'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('val_k').value = '';
+  document.getElementById('tipo_taco').value = '';
+  document.getElementById('status').value = '';
+  document.getElementById('status').className = '';
+  document.getElementById('anaFields').classList.remove('vis');
+}
+
+// ── CARREGAR ──────────────────────────────────────────────────────────────────
+async function carregarDados() {
+  if (!ghOnline) return;
+  try {
+    const { dados } = await lerDados();
+    todosDados = dados; filtrar();
+  } catch(e) { toast('❌ Erro ao carregar: ' + e.message, 'error'); }
+}
+
+// ── FILTROS ───────────────────────────────────────────────────────────────────
+function filtrar() {
+  const fP = document.getElementById('fPref').value.trim().toLowerCase();
+  const fS = document.getElementById('fStatus').value;
+  const fT = document.getElementById('fTipo').value;
+  const fI = document.getElementById('fIni').value;
+  const fF = document.getElementById('fFim').value;
+  filtrados = todosDados.filter(r => {
+    if (fP && !r.prefixo.toLowerCase().includes(fP)) return false;
+    if (fS && r.status !== fS) return false;
+    if (fT && r.tipo !== fT) return false;
+    if (fI || fF) {
+      const p = r.data_hora.split(' ')[0].split('/');
+      const dt = new Date(`${p[2]}-${p[1]}-${p[0]}`);
+      if (fI && dt < new Date(fI)) return false;
+      if (fF && dt > new Date(fF)) return false;
+    }
+    return true;
+  });
+  pagina = 1; renderStats(); renderTabela(); renderPag();
+}
+
+function limparFiltros() {
+  ['fPref','fStatus','fTipo','fIni','fFim'].forEach(id => document.getElementById(id).value = '');
+  filtrar();
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderStats() {
+  const ok    = filtrados.filter(r => r.status==='ok').length;
+  const sem   = filtrados.filter(r => r.status==='sem_leitura').length;
+  const trava = filtrados.filter(r => r.status==='km_trava').length;
+  document.getElementById('statsRow').innerHTML = `
+    <div class="chip tot"><strong>${filtrados.length}</strong> Total</div>
+    <div class="chip ok"><strong>${ok}</strong> OK</div>
+    <div class="chip warn"><strong>${sem}</strong> Sem leitura</div>
+    <div class="chip err"><strong>${trava}</strong> KM Trava</div>`;
+}
+
+function renderTabela() {
+  const c = document.getElementById('tableContainer');
+  if (!filtrados.length) {
+    c.innerHTML = `<div class="empty"><div class="icon">🚌</div><p>${
+      todosDados.length===0 ? 'Nenhum registro cadastrado ainda.'
+      : 'Nenhum registro encontrado com os filtros aplicados.'}</p></div>`;
+    return;
+  }
+  const ini = (pagina-1) * POR_PAG;
+  const pag = filtrados.slice(ini, ini + POR_PAG);
+  const rows = pag.map(r => {
+    const idx = todosDados.findIndex(x => x.id === r.id);
+    return `<tr>
+      <td class="pref">${r.prefixo}</td>
+      <td>${Number(r.od_painel).toLocaleString('pt-BR')} km</td>
+      <td>${Number(r.od_taco).toLocaleString('pt-BR')} km</td>
+      <td>${r.num_ravo}</td>
+      <td>${r.tipo==='digital' ? '🔵 Digital' : '🟡 Analógico'}</td>
+      <td>${r.constante_k || '—'}</td>
+      <td>${r.validade_k ? fmtDate(r.validade_k) : '—'}</td>
+      <td>${statusBadge(r.status)}</td>
+      <td style="color:var(--text-dim);font-size:12px;">${r.data_hora}</td>
+      <td style="display:flex;gap:4px;align-items:center;">
+        <button class="eb" onclick="abrirEdit(${idx})" title="Corrigir">✏️</button>
+        <button class="db" onclick="deletar(${idx},'${r.prefixo}')" title="Excluir">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+  c.innerHTML = `<div class="tw"><table>
+    <thead><tr>
+      <th>Prefixo</th><th>Odo. Painel</th><th>Odo. Tacógrafo</th><th>Nº RAVO</th>
+      <th>Tipo Taco.</th><th>Const. K</th><th>Val. K</th><th>Status</th><th>Data/Hora</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+function renderPag() {
+  const total = Math.ceil(filtrados.length / POR_PAG);
+  const el = document.getElementById('paginacao');
+  if (total <= 1) { el.innerHTML = ''; return; }
+  let h = `<button class="pgb" onclick="irPag(${pagina-1})" ${pagina===1?'disabled':''}>‹ Ant.</button>`;
+  for (let i=1; i<=total; i++) {
+    if (i===1 || i===total || Math.abs(i-pagina)<=2)
+      h += `<button class="pgb ${i===pagina?'act':''}" onclick="irPag(${i})">${i}</button>`;
+    else if (Math.abs(i-pagina)===3)
+      h += `<span style="color:var(--text-muted);padding:0 4px">…</span>`;
+  }
+  h += `<button class="pgb" onclick="irPag(${pagina+1})" ${pagina===total?'disabled':''}>Próx. ›</button>`;
+  el.innerHTML = h;
+}
+
+function irPag(p) {
+  const t = Math.ceil(filtrados.length / POR_PAG);
+  if (p<1 || p>t) return;
+  pagina = p; renderTabela(); renderPag();
+  document.getElementById('tableContainer').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// ── EDITAR ────────────────────────────────────────────────────────────────────
+function abrirEdit(idx) {
+  const r = todosDados[idx];
+  document.getElementById('editIdx').value = idx;
+  document.getElementById('ePref').value   = r.prefixo;
+  document.getElementById('eOdP').value    = r.od_painel;
+  document.getElementById('eOdT').value    = r.od_taco;
+  document.getElementById('eRavo').value   = r.num_ravo;
+  document.getElementById('eTipo').value   = r.tipo;
+  document.getElementById('eStatus').value = r.status;
+  document.getElementById('eConstK').value = r.constante_k || '';
+  document.getElementById('eValK').value   = r.validade_k  || '';
+  toggleEditAna();
+  document.getElementById('moEdit').classList.add('open');
+}
+function fecharEdit() { document.getElementById('moEdit').classList.remove('open'); }
+function toggleEditAna() {
+  const show = document.getElementById('eTipo').value === 'analogico';
+  document.getElementById('eKGrp').style.display = show ? '' : 'none';
+  document.getElementById('eVGrp').style.display = show ? '' : 'none';
+}
+
+async function salvarEdit() {
+  const idx  = parseInt(document.getElementById('editIdx').value);
+  const tipo = document.getElementById('eTipo').value;
+  const btn  = document.getElementById('btnSalvarEdit');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Salvando...';
+  try {
+    const { dados, sha } = await lerDados();
+    const id = todosDados[idx].id;
+    const di = dados.findIndex(x => x.id === id);
+    if (di === -1) throw new Error('Registro não encontrado');
+    dados[di] = {
+      ...dados[di],
+      prefixo:     document.getElementById('ePref').value.trim(),
+      od_painel:   Number(document.getElementById('eOdP').value),
+      od_taco:     Number(document.getElementById('eOdT').value),
+      num_ravo:    document.getElementById('eRavo').value.trim(),
+      tipo,
+      status:      document.getElementById('eStatus').value,
+      constante_k: tipo==='analogico' ? (document.getElementById('eConstK').value.trim()||null) : null,
+      validade_k:  tipo==='analogico' ? (document.getElementById('eValK').value||null) : null,
+    };
+    await salvarDados(dados, sha);
+    todosDados = dados; filtrar(); fecharEdit();
+    toast('✏️ Registro corrigido!', 'success');
+  } catch(e) { toast('❌ Erro: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = '💾 Salvar Correção'; }
+}
+
+// ── DELETAR ───────────────────────────────────────────────────────────────────
+async function deletar(idx, pref) {
+  if (!confirm(`Excluir o registro do prefixo "${pref}"?\n\nEsta ação não pode ser desfeita.`)) return;
+  try {
+    const { dados, sha } = await lerDados();
+    const id    = todosDados[idx].id;
+    const novos = dados.filter(x => x.id !== id);
+    await salvarDados(novos, sha);
+    todosDados = novos; filtrar();
+    toast('🗑 Registro excluído!', 'warn');
+  } catch(e) { toast('❌ Erro: ' + e.message, 'error'); }
+}
+
+// ── EXPORTAR ──────────────────────────────────────────────────────────────────
+function exportarExcel() {
+  if (!filtrados.length) { toast('⚠ Nenhum dado para exportar!', 'error'); return; }
+  const wb  = XLSX.utils.book_new();
+  const hdr = ['Prefixo','Odo. Painel (km)','Odo. Tacógrafo (km)','Nº RAVO','Tipo Tacógrafo',
+    'Constante K','Validade K','Status','Data/Hora'];
+  const rows = filtrados.map(r => [
+    r.prefixo, Number(r.od_painel), Number(r.od_taco), r.num_ravo,
+    r.tipo==='digital' ? 'Digital' : 'Analógico',
+    r.constante_k || '', r.validade_k ? fmtDate(r.validade_k) : '',
+    r.status==='ok' ? 'Sistema OK' : r.status==='sem_leitura' ? 'Kit RAVO sem leitura' : 'KM trava na RAVO',
+    r.data_hora
+  ]);
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['CONTROLE DE ATUALIZAÇÃO — SISTEMA EXCEL BR'],
+    ["Rápido D'Oeste / Ribe Transporte"],
+    [`Exportado em: ${new Date().toLocaleString('pt-BR')}   |   Registros: ${filtrados.length}`],
+    [], hdr, ...rows
+  ]);
+  ws['!cols']   = [{wch:12},{wch:18},{wch:20},{wch:14},{wch:16},{wch:14},{wch:14},{wch:24},{wch:22}];
+  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:8}},{s:{r:1,c:0},e:{r:1,c:8}},{s:{r:2,c:0},e:{r:2,c:8}}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Atualizações');
+  const n = new Date();
+  XLSX.writeFile(wb, `ExcelBR_${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}.xlsx`);
+  toast('📊 Planilha exportada!', 'success');
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function statusBadge(s) {
+  if (s==='ok')          return '<span class="badge b-ok">Sistema OK</span>';
+  if (s==='sem_leitura') return '<span class="badge b-sem">Sem Leitura</span>';
+  if (s==='km_trava')    return '<span class="badge b-trava">KM Trava</span>';
+  return s;
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y,m,dd] = d.split('-');
+  return dd ? `${dd}/${m}/${y}` : d;
+}
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast ${type} show`;
+  setTimeout(() => t.className = 'toast', 3500);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+(async () => {
+  const ok = await testarConexao();
+  if (ok) carregarDados();
+})();
+</script>
+</body>
+</html>
